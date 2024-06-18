@@ -13,6 +13,7 @@
 
 #include "IPStackSimulator.hh"
 #include "Loggers.hh"
+#include "PathManager.hh"
 #include "SendCommands.hh"
 #include "Server.hh"
 #include "Version.hh"
@@ -634,7 +635,7 @@ string Client::system_filename() const {
   if (!this->login || !this->login->bb_license) {
     throw logic_error("client is not logged in");
   }
-  return string_printf("system/players/system_%s.psosys", this->login->bb_license->username.c_str());
+  return PathManager::getInstance()->getSystemPath() + string_printf("players/system_%s.psosys", this->login->bb_license->username.c_str());
 }
 
 string Client::character_filename(const std::string& bb_username, int8_t index) {
@@ -644,11 +645,11 @@ string Client::character_filename(const std::string& bb_username, int8_t index) 
   if (index < 0) {
     throw logic_error("character index is not set");
   }
-  return string_printf("system/players/player_%s_%hhd.psochar", bb_username.c_str(), index);
+  return PathManager::getInstance()->getSystemPath() + string_printf("players/player_%s_%hhd.psochar", bb_username.c_str(), index);
 }
 
 string Client::backup_character_filename(uint32_t account_id, size_t index) {
-  return string_printf("system/players/backup_player_%" PRIu32 "_%zu.psochar", account_id, index);
+  return PathManager::getInstance()->getSystemPath() + string_printf("players/backup_player_%" PRIu32 "_%zu.psochar", account_id, index);
 }
 
 string Client::character_filename(int8_t index) const {
@@ -668,7 +669,7 @@ string Client::guild_card_filename() const {
   if (!this->login || !this->login->bb_license) {
     throw logic_error("client is not logged in");
   }
-  return string_printf("system/players/guild_cards_%s.psocard", this->login->bb_license->username.c_str());
+  return PathManager::getInstance()->getSystemPath() + string_printf("players/guild_cards_%s.psocard", this->login->bb_license->username.c_str());
 }
 
 string Client::shared_bank_filename() const {
@@ -678,7 +679,7 @@ string Client::shared_bank_filename() const {
   if (!this->login || !this->login->bb_license) {
     throw logic_error("client is not logged in");
   }
-  return string_printf("system/players/shared_bank_%s.psobank", this->login->bb_license->username.c_str());
+  return PathManager::getInstance()->getSystemPath() + string_printf("players/shared_bank_%s.psobank", this->login->bb_license->username.c_str());
 }
 
 string Client::legacy_account_filename() const {
@@ -688,7 +689,7 @@ string Client::legacy_account_filename() const {
   if (!this->login || !this->login->bb_license) {
     throw logic_error("client is not logged in");
   }
-  return string_printf("system/players/account_%s.nsa", this->login->bb_license->username.c_str());
+  return PathManager::getInstance()->getSystemPath() + string_printf("players/account_%s.nsa", this->login->bb_license->username.c_str());
 }
 
 string Client::legacy_player_filename() const {
@@ -701,8 +702,8 @@ string Client::legacy_player_filename() const {
   if (this->bb_character_index < 0) {
     throw logic_error("character index is not set");
   }
-  return string_printf(
-      "system/players/player_%s_%hhd.nsc",
+  return PathManager::getInstance()->getSystemPath() + string_printf(
+      "players/player_%s_%hhd.nsc",
       this->login->bb_license->username.c_str(),
       static_cast<int8_t>(this->bb_character_index + 1));
 }

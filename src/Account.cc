@@ -1,3 +1,5 @@
+#include "Account.hh"
+
 #include <inttypes.h>
 #include <stdio.h>
 #include <string.h>
@@ -7,7 +9,7 @@
 #include <phosg/Random.hh>
 #include <phosg/Time.hh>
 
-#include "Account.hh"
+#include "PathManager.hh"
 
 using namespace std;
 
@@ -389,13 +391,13 @@ void Account::save() const {
   if (!this->is_temporary) {
     auto json = this->json();
     string json_data = json.serialize(JSON::SerializeOption::FORMAT | JSON::SerializeOption::HEX_INTEGERS);
-    string filename = string_printf("system/licenses/%010" PRIu32 ".json", this->account_id);
+    string filename = PathManager::getInstance()->getSystemPath() + string_printf("licenses/%010" PRIu32 ".json", this->account_id);
     save_file(filename, json_data);
   }
 }
 
 void Account::delete_file() const {
-  string filename = string_printf("system/licenses/%010" PRIu32 ".json", this->account_id);
+  string filename = PathManager::getInstance()->getSystemPath() + string_printf("licenses/%010" PRIu32 ".json", this->account_id);
   remove(filename.c_str());
 }
 
@@ -984,13 +986,14 @@ shared_ptr<Account> AccountIndex::create_temporary_account_for_shared_account(
 AccountIndex::AccountIndex(bool force_all_temporary)
     : force_all_temporary(force_all_temporary) {
   if (!this->force_all_temporary) {
-    if (!isdir("system/licenses")) {
-      mkdir("system/licenses", 0755);
+    string licenses_path = PathManager::getInstance()->getSystemPath() + "licenses";
+    if (!isdir(licenses_path.c_str())) {
+      mkdir(licenses_path.c_str(), 0755);
     } else {
-      for (const auto& item : list_directory("system/licenses")) {
+      for (const auto& item : list_directory(licenses_path.c_str())) {
         if (ends_with(item, ".json")) {
           try {
-            JSON json = JSON::parse(load_file("system/licenses/" + item));
+            JSON json = JSON::parse(load_file(PathManager::getInstance()->getSystemPath() + "licenses/" + item));
             this->add(make_shared<Account>(json));
           } catch (const exception& e) {
             log_error("Failed to index account %s", item.c_str());

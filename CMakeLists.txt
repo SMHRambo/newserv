@@ -108,6 +108,7 @@ set(SOURCES
     src/NetworkAddresses.cc
     src/PatchFileIndex.cc
     src/PatchServer.cc
+    src/PathManager.cc
     src/PlayerFilesManager.cc
     src/PlayerSubordinates.cc
     src/ProxyCommands.cc
@@ -167,7 +168,7 @@ foreach(LogTestCase IN ITEMS ${LogTestCases})
     add_test(
         NAME ${LogTestCase}
         WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
-        COMMAND ${CMAKE_BINARY_DIR}/newserv --replay-log=${LogTestCase} --config=${CMAKE_SOURCE_DIR}/tests/config.json)
+        COMMAND ${CMAKE_BINARY_DIR}/newserv --replay-log=${LogTestCase} --config=${CMAKE_SOURCE_DIR}/tests/config.json --system=${CMAKE_SOURCE_DIR}/system/)
 endforeach()
 
 file(GLOB ScriptTestCases ${CMAKE_SOURCE_DIR}/tests/*.test.sh)

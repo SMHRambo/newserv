@@ -8,6 +8,7 @@
 #include "GVMEncoder.hh"
 #include "ItemData.hh"
 #include "Loggers.hh"
+#include "PathManager.hh"
 #include "StaticGameData.hh"
 
 using namespace std;
@@ -47,11 +48,11 @@ TeamIndex::Team::Team(uint32_t team_id) : Team() {
 }
 
 string TeamIndex::Team::json_filename() const {
-  return string_printf("system/teams/%08" PRIX32 ".json", this->team_id);
+  return PathManager::getInstance()->getSystemPath() + string_printf("teams/%08" PRIX32 ".json", this->team_id);
 }
 
 string TeamIndex::Team::flag_filename() const {
-  return string_printf("system/teams/%08" PRIX32 ".bmp", this->team_id);
+  return PathManager::getInstance()->getSystemPath() + string_printf("teams/%08" PRIX32 ".bmp", this->team_id);
 }
 
 void TeamIndex::Team::load_config() {

@@ -17,6 +17,7 @@
 #include "CommandFormats.hh"
 #include "Compression.hh"
 #include "FileContentsCache.hh"
+#include "PathManager.hh"
 #include "PSOProtocol.hh"
 #include "ProxyServer.hh"
 #include "ReceiveSubcommands.hh"
@@ -688,7 +689,7 @@ void send_stream_file_index_bb(shared_ptr<Client> c) {
   vector<S_StreamFileIndexEntry_BB_01EB> entries;
   size_t offset = 0;
   for (const string& filename : stream_file_entries) {
-    string key = "system/blueburst/" + filename;
+    string key = PathManager::getInstance()->getSystemPath() + "blueburst/" + filename;
     auto cache_res = bb_stream_files_cache.get_or_load(key);
     auto& e = entries.emplace_back();
     e.size = cache_res.file->data->size();
@@ -716,13 +717,13 @@ void send_stream_file_chunk_bb(shared_ptr<Client> c, uint32_t chunk_index) {
       "<BB stream file>", +[](const string&) -> string {
         size_t bytes = 0;
         for (const auto& name : stream_file_entries) {
-          bytes += bb_stream_files_cache.get_or_load("system/blueburst/" + name).file->data->size();
+          bytes += bb_stream_files_cache.get_or_load(PathManager::getInstance()->getSystemPath() + "blueburst/" + name).file->data->size();
         }
 
         string ret;
         ret.reserve(bytes);
         for (const auto& name : stream_file_entries) {
-          ret += *bb_stream_files_cache.get_or_load("system/blueburst/" + name).file->data;
+          ret += *bb_stream_files_cache.get_or_load(PathManager::getInstance()->getSystemPath() + "blueburst/" + name).file->data;
         }
         return ret;
       });

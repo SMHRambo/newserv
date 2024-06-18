@@ -35,6 +35,7 @@
 #include "PSOGCObjectGraph.hh"
 #include "PSOProtocol.hh"
 #include "PatchServer.hh"
+#include "PathManager.hh"
 #include "ProxyServer.hh"
 #include "Quest.hh"
 #include "QuestScript.hh"
@@ -58,7 +59,7 @@ void print_usage();
 
 std::string get_config_filename(Arguments& args) {
   string config_filename = args.get<string>("config");
-  return config_filename.empty() ? "system/config.json" : config_filename;
+  return config_filename.empty() ? PathManager::getInstance()->getSystemPath() + "config.json" : config_filename;
 }
 
 template <typename T>
@@ -450,7 +451,7 @@ static void a_encrypt_decrypt_fn(Arguments& args) {
         throw runtime_error("the --key option is required for BB");
       }
       seed = parse_data_string(seed, nullptr, ParseDataFlags::ALLOW_FILES);
-      auto key = load_object_file<PSOBBEncryption::KeyFile>("system/blueburst/keys/" + key_name + ".nsk");
+      auto key = load_object_file<PSOBBEncryption::KeyFile>(PathManager::getInstance()->getSystemPath() + "blueburst/keys/" + key_name + ".nsk");
       crypt = make_shared<PSOBBEncryption>(key, seed.data(), seed.size());
       break;
     }
@@ -1253,7 +1254,7 @@ Action a_assemble_all_patches(
     versions, and one encrypted, for PSO GC JP v1.4, JP Ep3, and Ep3 Trial\n\
     Edition). The output files are saved in system/client-functions.\n",
     +[](Arguments&) {
-      auto fci = make_shared<FunctionCodeIndex>("system/client-functions");
+      auto fci = make_shared<FunctionCodeIndex>(PathManager::getInstance()->getSystemPath() + "client-functions");
 
       auto process_code = +[](shared_ptr<const CompiledFunctionCode> code,
                                uint32_t checksum_addr,
@@ -1525,7 +1526,7 @@ Action a_cat_client(
           throw runtime_error("a key filename is required for BB client emulation");
         }
         key = make_shared<PSOBBEncryption::KeyFile>(
-            load_object_file<PSOBBEncryption::KeyFile>("system/blueburst/keys/" + key_file_name + ".nsk"));
+            load_object_file<PSOBBEncryption::KeyFile>(PathManager::getInstance()->getSystemPath() + "blueburst/keys/" + key_file_name + ".nsk"));
       }
       shared_ptr<struct event_base> base(event_base_new(), event_base_free);
       auto cat_client_remote = make_sockaddr_storage(parse_netloc(args.get<string>(1))).first;
@@ -1800,7 +1801,7 @@ Action a_show_ep3_cards(
 
       unique_ptr<BinaryTextSet> text_english;
       try {
-        JSON json = JSON::parse(load_file("system/ep3/text-english.json"));
+        JSON json = JSON::parse(load_file(PathManager::getInstance()->getSystemPath() + "ep3/text-english.json"));
         text_english = make_unique<BinaryTextSet>(json);
       } catch (const exception& e) {
       }
@@ -1880,7 +1881,7 @@ Action a_generate_ep3_cards_html(
       bool show_large_column = false;
       bool show_medium_column = false;
       bool show_small_column = false;
-      for (const auto& filename : list_directory_sorted("system/ep3/cardtex")) {
+      for (const auto& filename : list_directory_sorted(PathManager::getInstance()->getSystemPath() + "ep3/cardtex")) {
         if ((filename[0] == 'C' || filename[0] == 'M' || filename[0] == 'L') && (filename[1] == '_')) {
           size_t card_id = stoull(filename.substr(2, 3), nullptr, 10);
           if (infos.size() <= card_id) {
@@ -1888,13 +1889,13 @@ Action a_generate_ep3_cards_html(
           }
           auto& info = infos[card_id];
           if (filename[0] == 'C') {
-            info.large_filename = "system/ep3/cardtex/" + filename;
+            info.large_filename = PathManager::getInstance()->getSystemPath() + "ep3/cardtex/" + filename;
             show_large_column = true;
           } else if (filename[0] == 'L') {
-            info.medium_filename = "system/ep3/cardtex/" + filename;
+            info.medium_filename = PathManager::getInstance()->getSystemPath() + "ep3/cardtex/" + filename;
             show_medium_column = true;
           } else if (filename[0] == 'M') {
-            info.small_filename = "system/ep3/cardtex/" + filename;
+            info.small_filename = PathManager::getInstance()->getSystemPath() + "ep3/cardtex/" + filename;
             show_small_column = true;
           }
         }
@@ -2507,9 +2508,10 @@ Action a_run_server_replay_log(
         throw runtime_error("failed to set up libevent threads");
       }
 
-      if (!isdir("system/players")) {
+      string player_path = PathManager::getInstance()->getSystemPath() + "players";
+      if (!isdir(player_path.c_str())) {
         config_log.info("Players directory does not exist; creating it");
-        mkdir("system/players", 0755);
+        mkdir(player_path.c_str(), 0755);
       }
 
       const string& replay_log_filename = args.get<string>("replay-log");
@@ -2791,6 +2793,9 @@ int main(int argc, char** argv) {
     log_error("Unknown or invalid action; try --help");
     return 1;
   }
+
+  PathManager::getInstance()->setPath(args);
+
 #ifdef PHOSG_WINDOWS
   // Cygwin just gives a stackdump when an exception falls out of main(), so
   // unlike Linux and macOS, we have to manually catch exceptions here just to

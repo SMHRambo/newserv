@@ -17,6 +17,7 @@
 #include "FileContentsCache.hh"
 #include "ItemCreator.hh"
 #include "Loggers.hh"
+#include "PathManager.hh"
 #include "PSOProtocol.hh"
 #include "ProxyServer.hh"
 #include "ReceiveSubcommands.hh"
@@ -1600,7 +1601,7 @@ static void on_CA_Ep3(shared_ptr<Client> c, uint16_t, uint32_t, string& data) {
     } catch (const exception& e) {
       c->log.error("Episode 3 engine returned an error: %s", e.what());
       if (l->battle_record) {
-        string filename = string_printf("system/ep3/battle-records/exc.%" PRIu64 ".mzrd", now());
+        string filename = PathManager::getInstance()->getSystemPath() + string_printf("ep3/battle-records/exc.%" PRIu64 ".mzrd", now());
         save_file(filename, l->battle_record->serialize());
         c->log.error("Saved partial battle record as %s", filename.c_str());
       }
@@ -2960,7 +2961,7 @@ static void on_D7_GC(shared_ptr<Client> c, uint16_t, uint32_t, string& data) {
   } else {
     try {
       static FileContentsCache gba_file_cache(300 * 1000 * 1000);
-      auto f = gba_file_cache.get_or_load("system/gba/" + filename).file;
+      auto f = gba_file_cache.get_or_load(PathManager::getInstance()->getSystemPath() + "gba/" + filename).file;
       send_open_quest_file(c, "", filename, "", 0, QuestFileType::GBA_DEMO, f->data);
     } catch (const out_of_range&) {
       send_command(c, 0xD7, 0x00);

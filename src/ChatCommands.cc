@@ -12,6 +12,7 @@
 #include "Client.hh"
 #include "Lobby.hh"
 #include "Loggers.hh"
+#include "PathManager.hh"
 #include "ProxyServer.hh"
 #include "ReceiveCommands.hh"
 #include "Revision.hh"
@@ -1044,7 +1045,7 @@ static string file_path_for_recording(const std::string& args, uint32_t account_
       throw runtime_error("invalid recording name");
     }
   }
-  return string_printf("system/ep3/battle-records/%010" PRIu32 "_%s.mzrd", account_id, args.c_str());
+  return PathManager::getInstance()->getSystemPath() + string_printf("ep3/battle-records/%010" PRIu32 "_%s.mzrd", account_id, args.c_str());
 }
 
 static void server_command_saverec(shared_ptr<Client> c, const std::string& args) {

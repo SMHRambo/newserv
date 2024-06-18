@@ -13,6 +13,7 @@
 #include "IPStackSimulator.hh"
 #include "Loggers.hh"
 #include "NetworkAddresses.hh"
+#include "PathManager.hh"
 #include "SendCommands.hh"
 #include "Text.hh"
 #include "TextIndex.hh"
@@ -515,7 +516,7 @@ shared_ptr<const string> ServerState::load_bb_file(
   const string& effective_bb_directory_filename = bb_directory_filename.empty() ? patch_index_filename : bb_directory_filename;
   static FileContentsCache cache(10 * 60 * 1000 * 1000); // 10 minutes
   try {
-    auto ret = cache.get_or_load("system/blueburst/" + effective_bb_directory_filename);
+    auto ret = cache.get_or_load(PathManager::getInstance()->getSystemPath() + "blueburst/" + effective_bb_directory_filename);
     return ret.file->data;
   } catch (const exception& e) {
     throw cannot_open_file(patch_index_filename);
@@ -535,14 +536,14 @@ shared_ptr<const string> ServerState::load_map_file_uncached(Version version, co
     }
   } else if (version == Version::PC_V2) {
     try {
-      string path = "system/patch-pc/Media/PSO/" + filename;
+      string path = PathManager::getInstance()->getSystemPath() + "patch-pc/Media/PSO/" + filename;
       auto ret = make_shared<string>(load_file(path));
       return ret;
     } catch (const exception& e) {
     }
   }
   try {
-    string path = string_printf("system/maps/%s/%s", file_path_token_for_version(version), filename.c_str());
+    string path = PathManager::getInstance()->getSystemPath() + string_printf("maps/%s/%s", file_path_token_for_version(version), filename.c_str());
     auto ret = make_shared<string>(load_file(path));
     return ret;
   } catch (const exception& e) {
@@ -837,7 +838,7 @@ void ServerState::load_config_early() {
     this->ep3_lobby_banners.clear();
     size_t banner_index = 0;
     for (const auto& it : this->config_json->get("Episode3LobbyBanners", JSON::list()).as_list()) {
-      string path = "system/ep3/banners/" + it->at(2).as_string();
+      string path = PathManager::getInstance()->getSystemPath() + "ep3/banners/" + it->at(2).as_string();
 
       string compressed_gvm_data;
       string decompressed_gvm_data;
@@ -1313,12 +1314,12 @@ void ServerState::load_config_late() {
 
 void ServerState::load_bb_private_keys(bool from_non_event_thread) {
   std::vector<std::shared_ptr<const PSOBBEncryption::KeyFile>> new_keys;
-  for (const string& filename : list_directory("system/blueburst/keys")) {
+  for (const string& filename : list_directory(PathManager::getInstance()->getSystemPath() + "blueburst/keys")) {
     if (!ends_with(filename, ".nsk")) {
       continue;
     }
     new_keys.emplace_back(make_shared<PSOBBEncryption::KeyFile>(
-        load_object_file<PSOBBEncryption::KeyFile>("system/blueburst/keys/" + filename)));
+        load_object_file<PSOBBEncryption::KeyFile>(PathManager::getInstance()->getSystemPath() + "blueburst/keys/" + filename)));
     config_log.info("Loaded Blue Burst key file: %s", filename.c_str());
   }
   config_log.info("%zu Blue Burst key file(s) loaded", this->bb_private_keys.size());
@@ -1342,7 +1343,7 @@ void ServerState::load_accounts(bool from_non_event_thread) {
 
 void ServerState::load_teams(bool from_non_event_thread) {
   config_log.info("Indexing teams");
-  shared_ptr<TeamIndex> new_index = make_shared<TeamIndex>("system/teams", this->team_reward_defs_json);
+  shared_ptr<TeamIndex> new_index = make_shared<TeamIndex>(PathManager::getInstance()->getSystemPath() + "teams", this->team_reward_defs_json);
 
   auto set = [s = this->shared_from_this(), new_index = std::move(new_index)]() {
     s->team_index = std::move(new_index);
@@ -1355,15 +1356,15 @@ void ServerState::load_patch_indexes(bool from_non_event_thread) {
   shared_ptr<PatchFileIndex> pc_patch_file_index;
   shared_ptr<PatchFileIndex> bb_patch_file_index;
 
-  if (isdir("system/patch-pc")) {
+  if (isdir(PathManager::getInstance()->getSystemPath() + "patch-pc")) {
     config_log.info("Indexing PSO PC patch files");
-    pc_patch_file_index = make_shared<PatchFileIndex>("system/patch-pc");
+    pc_patch_file_index = make_shared<PatchFileIndex>(PathManager::getInstance()->getSystemPath() + "patch-pc");
   } else {
     config_log.info("PSO PC patch files not present");
   }
-  if (isdir("system/patch-bb")) {
+  if (isdir(PathManager::getInstance()->getSystemPath() + "patch-bb")) {
     config_log.info("Indexing PSO BB patch files");
-    bb_patch_file_index = make_shared<PatchFileIndex>("system/patch-bb");
+    bb_patch_file_index = make_shared<PatchFileIndex>(PathManager::getInstance()->getSystemPath() + "patch-bb");
     try {
       auto gsl_file = bb_patch_file_index->get("./data/data.gsl");
       bb_data_gsl = make_shared<GSLArchive>(gsl_file->load_data(), false);
@@ -1458,8 +1459,8 @@ void ServerState::load_battle_params(bool from_non_event_thread) {
 
 void ServerState::load_level_tables(bool from_non_event_thread) {
   config_log.info("Loading level tables");
-  auto new_table_v1_v2 = make_shared<LevelTableV2>(load_file("system/level-tables/PlayerTable-pc-v2.prs"), true);
-  auto new_table_v3 = make_shared<LevelTableV3BE>(load_file("system/level-tables/PlyLevelTbl-gc-v3.cpt"), true);
+  auto new_table_v1_v2 = make_shared<LevelTableV2>(load_file(PathManager::getInstance()->getSystemPath() + "level-tables/PlayerTable-pc-v2.prs"), true);
+  auto new_table_v3 = make_shared<LevelTableV3BE>(load_file(PathManager::getInstance()->getSystemPath() + "level-tables/PlyLevelTbl-gc-v3.cpt"), true);
   auto new_table_v4 = make_shared<LevelTableV4>(*this->load_bb_file("PlyLevelTbl.prs"), true);
 
   auto set = [s = this->shared_from_this(), new_table_v1_v2 = std::move(new_table_v1_v2), new_table_v3 = std::move(new_table_v3), new_table_v4 = std::move(new_table_v4)]() {
@@ -1471,7 +1472,7 @@ void ServerState::load_level_tables(bool from_non_event_thread) {
 }
 
 void ServerState::load_text_index(bool from_non_event_thread) {
-  auto new_index = make_shared<TextIndex>("system/text-sets", [&](Version version, const string& filename) -> shared_ptr<const string> {
+  auto new_index = make_shared<TextIndex>(PathManager::getInstance()->getSystemPath() + "text-sets", [&](Version version, const string& filename) -> shared_ptr<const string> {
     try {
       if (version == Version::BB_V4) {
         return this->load_bb_file(filename);
@@ -1495,7 +1496,7 @@ void ServerState::load_word_select_table(bool from_non_event_thread) {
   config_log.info("Loading Word Select table");
 
   vector<vector<string>> name_alias_lists;
-  auto json = JSON::parse(load_file("system/text-sets/ws-name-alias-lists.json"));
+  auto json = JSON::parse(load_file(PathManager::getInstance()->getSystemPath() + "text-sets/ws-name-alias-lists.json"));
   for (const auto& coll_it : json.as_list()) {
     auto& coll = name_alias_lists.emplace_back();
     for (const auto& str_it : coll_it->as_list()) {
@@ -1511,37 +1512,37 @@ void ServerState::load_word_select_table(bool from_non_event_thread) {
     pc_unitxt_collection = &this->text_index->get(Version::PC_V2, 1, 35);
   } else {
     config_log.info("(Word select) Loading PC_V2 unitxt_e.prs");
-    pc_unitxt_data = make_unique<UnicodeTextSet>(load_file("system/text-sets/pc-v2/unitxt_e.prs"));
+    pc_unitxt_data = make_unique<UnicodeTextSet>(load_file(PathManager::getInstance()->getSystemPath() + "text-sets/pc-v2/unitxt_e.prs"));
     pc_unitxt_collection = &pc_unitxt_data->get(35);
   }
   config_log.info("(Word select) Loading BB_V4 unitxt_ws_e.prs");
-  auto bb_unitxt_data = make_unique<UnicodeTextSet>(load_file("system/text-sets/bb-v4/unitxt_ws_e.prs"));
+  auto bb_unitxt_data = make_unique<UnicodeTextSet>(load_file(PathManager::getInstance()->getSystemPath() + "text-sets/bb-v4/unitxt_ws_e.prs"));
   bb_unitxt_collection = &bb_unitxt_data->get(0);
 
   config_log.info("(Word select) Loading DC_NTE data");
-  WordSelectSet dc_nte_ws(load_file("system/text-sets/dc-nte/ws_data.bin"), Version::DC_NTE, nullptr, true);
+  WordSelectSet dc_nte_ws(load_file(PathManager::getInstance()->getSystemPath() + "text-sets/dc-nte/ws_data.bin"), Version::DC_NTE, nullptr, true);
   config_log.info("(Word select) Loading DC_V1_11_2000_PROTOTYPE data");
-  WordSelectSet dc_112000_ws(load_file("system/text-sets/dc-11-2000/ws_data.bin"), Version::DC_V1_11_2000_PROTOTYPE, nullptr, false);
+  WordSelectSet dc_112000_ws(load_file(PathManager::getInstance()->getSystemPath() + "text-sets/dc-11-2000/ws_data.bin"), Version::DC_V1_11_2000_PROTOTYPE, nullptr, false);
   config_log.info("(Word select) Loading DC_V1 data");
-  WordSelectSet dc_v1_ws(load_file("system/text-sets/dc-v1/ws_data.bin"), Version::DC_V1, nullptr, false);
+  WordSelectSet dc_v1_ws(load_file(PathManager::getInstance()->getSystemPath() + "text-sets/dc-v1/ws_data.bin"), Version::DC_V1, nullptr, false);
   config_log.info("(Word select) Loading DC_V2 data");
-  WordSelectSet dc_v2_ws(load_file("system/text-sets/dc-v2/ws_data.bin"), Version::DC_V2, nullptr, false);
+  WordSelectSet dc_v2_ws(load_file(PathManager::getInstance()->getSystemPath() + "text-sets/dc-v2/ws_data.bin"), Version::DC_V2, nullptr, false);
   config_log.info("(Word select) Loading PC_NTE data");
-  WordSelectSet pc_nte_ws(load_file("system/text-sets/pc-nte/ws_data.bin"), Version::PC_NTE, pc_unitxt_collection, false);
+  WordSelectSet pc_nte_ws(load_file(PathManager::getInstance()->getSystemPath() + "text-sets/pc-nte/ws_data.bin"), Version::PC_NTE, pc_unitxt_collection, false);
   config_log.info("(Word select) Loading PC_V2 data");
-  WordSelectSet pc_v2_ws(load_file("system/text-sets/pc-v2/ws_data.bin"), Version::PC_V2, pc_unitxt_collection, false);
+  WordSelectSet pc_v2_ws(load_file(PathManager::getInstance()->getSystemPath() + "text-sets/pc-v2/ws_data.bin"), Version::PC_V2, pc_unitxt_collection, false);
   config_log.info("(Word select) Loading GC_NTE data");
-  WordSelectSet gc_nte_ws(load_file("system/text-sets/gc-nte/ws_data.bin"), Version::GC_NTE, nullptr, false);
+  WordSelectSet gc_nte_ws(load_file(PathManager::getInstance()->getSystemPath() + "text-sets/gc-nte/ws_data.bin"), Version::GC_NTE, nullptr, false);
   config_log.info("(Word select) Loading GC_V3 data");
-  WordSelectSet gc_v3_ws(load_file("system/text-sets/gc-v3/ws_data.bin"), Version::GC_V3, nullptr, false);
+  WordSelectSet gc_v3_ws(load_file(PathManager::getInstance()->getSystemPath() + "text-sets/gc-v3/ws_data.bin"), Version::GC_V3, nullptr, false);
   config_log.info("(Word select) Loading GC_EP3_NTE data");
-  WordSelectSet gc_ep3_nte_ws(load_file("system/text-sets/gc-ep3-nte/ws_data.bin"), Version::GC_EP3_NTE, nullptr, false);
+  WordSelectSet gc_ep3_nte_ws(load_file(PathManager::getInstance()->getSystemPath() + "text-sets/gc-ep3-nte/ws_data.bin"), Version::GC_EP3_NTE, nullptr, false);
   config_log.info("(Word select) Loading GC_EP3 data");
-  WordSelectSet gc_ep3_ws(load_file("system/text-sets/gc-ep3/ws_data.bin"), Version::GC_EP3, nullptr, false);
+  WordSelectSet gc_ep3_ws(load_file(PathManager::getInstance()->getSystemPath() + "text-sets/gc-ep3/ws_data.bin"), Version::GC_EP3, nullptr, false);
   config_log.info("(Word select) Loading XB_V3 data");
-  WordSelectSet xb_v3_ws(load_file("system/text-sets/xb-v3/ws_data.bin"), Version::XB_V3, nullptr, false);
+  WordSelectSet xb_v3_ws(load_file(PathManager::getInstance()->getSystemPath() + "text-sets/xb-v3/ws_data.bin"), Version::XB_V3, nullptr, false);
   config_log.info("(Word select) Loading BB_V4 data");
-  WordSelectSet bb_v4_ws(load_file("system/text-sets/bb-v4/ws_data.bin"), Version::BB_V4, bb_unitxt_collection, false);
+  WordSelectSet bb_v4_ws(load_file(PathManager::getInstance()->getSystemPath() + "text-sets/bb-v4/ws_data.bin"), Version::BB_V4, bb_unitxt_collection, false);
 
   config_log.info("(Word select) Generating table");
   auto new_table = make_shared<WordSelectTable>(
@@ -1608,12 +1609,12 @@ void ServerState::load_drop_tables(bool from_non_event_thread) {
   config_log.info("Loading rare item sets");
 
   unordered_map<string, shared_ptr<RareItemSet>> new_rare_item_sets;
-  for (const auto& filename : list_directory_sorted("system/item-tables")) {
+  for (const auto& filename : list_directory_sorted(PathManager::getInstance()->getSystemPath() + "item-tables")) {
     if (!starts_with(filename, "rare-table-")) {
       continue;
     }
 
-    string path = "system/item-tables/" + filename;
+    string path = PathManager::getInstance()->getSystemPath() + "item-tables/" + filename;
     size_t ext_offset = filename.rfind('.');
     string basename = (ext_offset == string::npos) ? filename : filename.substr(0, ext_offset);
 
@@ -1652,36 +1653,36 @@ void ServerState::load_drop_tables(bool from_non_event_thread) {
   }
 
   config_log.info("Loading v2 common item table");
-  auto ct_data_v2 = make_shared<string>(load_file("system/item-tables/ItemCT-pc-v2.afs"));
-  auto pt_data_v2 = make_shared<string>(load_file("system/item-tables/ItemPT-pc-v2.afs"));
+  auto ct_data_v2 = make_shared<string>(load_file(PathManager::getInstance()->getSystemPath() + "item-tables/ItemCT-pc-v2.afs"));
+  auto pt_data_v2 = make_shared<string>(load_file(PathManager::getInstance()->getSystemPath() + "item-tables/ItemPT-pc-v2.afs"));
   auto new_common_item_set_v2 = make_shared<AFSV2CommonItemSet>(pt_data_v2, ct_data_v2);
   config_log.info("Loading v3+v4 common item table");
-  auto pt_data_v3_v4 = make_shared<string>(load_file("system/item-tables/ItemPT-gc-v3.gsl"));
+  auto pt_data_v3_v4 = make_shared<string>(load_file(PathManager::getInstance()->getSystemPath() + "item-tables/ItemPT-gc-v3.gsl"));
   auto new_common_item_set_v3_v4 = make_shared<GSLV3V4CommonItemSet>(pt_data_v3_v4, true);
 
   config_log.info("Loading armor table");
-  auto armor_data = make_shared<string>(load_file("system/item-tables/ArmorRandom-gc-v3.rel"));
+  auto armor_data = make_shared<string>(load_file(PathManager::getInstance()->getSystemPath() + "item-tables/ArmorRandom-gc-v3.rel"));
   auto new_armor_random_set = make_shared<ArmorRandomSet>(armor_data);
 
   config_log.info("Loading tool table");
-  auto tool_data = make_shared<string>(load_file("system/item-tables/ToolRandom-gc-v3.rel"));
+  auto tool_data = make_shared<string>(load_file(PathManager::getInstance()->getSystemPath() + "item-tables/ToolRandom-gc-v3.rel"));
   auto new_tool_random_set = make_shared<ToolRandomSet>(tool_data);
 
   config_log.info("Loading weapon tables");
   std::array<std::shared_ptr<const WeaponRandomSet>, 4> new_weapon_random_sets;
   const char* filenames[4] = {
-      "system/item-tables/WeaponRandomNormal-gc-v3.rel",
-      "system/item-tables/WeaponRandomHard-gc-v3.rel",
-      "system/item-tables/WeaponRandomVeryHard-gc-v3.rel",
-      "system/item-tables/WeaponRandomUltimate-gc-v3.rel",
+      "item-tables/WeaponRandomNormal-gc-v3.rel",
+      "item-tables/WeaponRandomHard-gc-v3.rel",
+      "item-tables/WeaponRandomVeryHard-gc-v3.rel",
+      "item-tables/WeaponRandomUltimate-gc-v3.rel",
   };
   for (size_t z = 0; z < 4; z++) {
-    auto weapon_data = make_shared<string>(load_file(filenames[z]));
+    auto weapon_data = make_shared<string>(load_file(PathManager::getInstance()->getSystemPath() + filenames[z]));
     new_weapon_random_sets[z] = make_shared<WeaponRandomSet>(weapon_data);
   }
 
   config_log.info("Loading tekker adjustment table");
-  auto tekker_data = make_shared<string>(load_file("system/item-tables/JudgeItem-gc-v3.rel"));
+  auto tekker_data = make_shared<string>(load_file(PathManager::getInstance()->getSystemPath() + "item-tables/JudgeItem-gc-v3.rel"));
   auto new_tekker_adjustment_set = make_shared<TekkerAdjustmentSet>(tekker_data);
 
   auto set = [s = this->shared_from_this(),
@@ -1717,7 +1718,7 @@ void ServerState::load_item_definitions(bool from_non_event_thread) {
   std::array<std::shared_ptr<const ItemParameterTable>, NUM_VERSIONS> new_item_parameter_tables;
   for (size_t v_s = NUM_PATCH_VERSIONS; v_s < NUM_VERSIONS; v_s++) {
     Version v = static_cast<Version>(v_s);
-    string path = string_printf("system/item-tables/ItemPMT-%s.prs", file_path_token_for_version(v));
+    string path = PathManager::getInstance()->getSystemPath() + string_printf("item-tables/ItemPMT-%s.prs", file_path_token_for_version(v));
     config_log.info("Loading item definition table %s", path.c_str());
     auto data = make_shared<string>(prs_decompress(load_file(path)));
     new_item_parameter_tables[v_s] = make_shared<ItemParameterTable>(data, v);
@@ -1725,7 +1726,7 @@ void ServerState::load_item_definitions(bool from_non_event_thread) {
 
   // TODO: We should probably load the tables for other versions too.
   config_log.info("Loading mag evolution table");
-  auto mag_data = make_shared<string>(prs_decompress(load_file("system/item-tables/ItemMagEdit-bb-v4.prs")));
+  auto mag_data = make_shared<string>(prs_decompress(load_file(PathManager::getInstance()->getSystemPath() + "item-tables/ItemMagEdit-bb-v4.prs")));
   auto new_mag_evolution_table = make_shared<MagEvolutionTable>(mag_data);
 
   auto set = [s = this->shared_from_this(),
@@ -1740,22 +1741,22 @@ void ServerState::load_item_definitions(bool from_non_event_thread) {
 void ServerState::load_ep3_cards(bool from_non_event_thread) {
   config_log.info("Loading Episode 3 card definitions");
   auto new_ep3_card_index = make_shared<Episode3::CardIndex>(
-      "system/ep3/card-definitions.mnr",
-      "system/ep3/card-definitions.mnrd",
-      "system/ep3/card-text.mnr",
-      "system/ep3/card-text.mnrd",
-      "system/ep3/card-dice-text.mnr",
-      "system/ep3/card-dice-text.mnrd");
+      PathManager::getInstance()->getSystemPath() + "ep3/card-definitions.mnr",
+      PathManager::getInstance()->getSystemPath() + "ep3/card-definitions.mnrd",
+      PathManager::getInstance()->getSystemPath() + "ep3/card-text.mnr",
+      PathManager::getInstance()->getSystemPath() + "ep3/card-text.mnrd",
+      PathManager::getInstance()->getSystemPath() + "ep3/card-dice-text.mnr",
+      PathManager::getInstance()->getSystemPath() + "ep3/card-dice-text.mnrd");
   config_log.info("Loading Episode 3 trial card definitions");
   auto new_ep3_card_index_trial = make_shared<Episode3::CardIndex>(
-      "system/ep3/card-definitions-trial.mnr",
-      "system/ep3/card-definitions-trial.mnrd",
-      "system/ep3/card-text-trial.mnr",
-      "system/ep3/card-text-trial.mnrd",
-      "system/ep3/card-dice-text-trial.mnr",
-      "system/ep3/card-dice-text-trial.mnrd");
+      PathManager::getInstance()->getSystemPath() + "ep3/card-definitions-trial.mnr",
+      PathManager::getInstance()->getSystemPath() + "ep3/card-definitions-trial.mnrd",
+      PathManager::getInstance()->getSystemPath() + "ep3/card-text-trial.mnr",
+      PathManager::getInstance()->getSystemPath() + "ep3/card-text-trial.mnrd",
+      PathManager::getInstance()->getSystemPath() + "ep3/card-dice-text-trial.mnr",
+      PathManager::getInstance()->getSystemPath() + "ep3/card-dice-text-trial.mnrd");
   config_log.info("Loading Episode 3 COM decks");
-  auto new_ep3_com_deck_index = make_shared<Episode3::COMDeckIndex>("system/ep3/com-decks.json");
+  auto new_ep3_com_deck_index = make_shared<Episode3::COMDeckIndex>(PathManager::getInstance()->getSystemPath() + "ep3/com-decks.json");
 
   auto set = [s = this->shared_from_this(),
                  new_ep3_card_index = std::move(new_ep3_card_index),
@@ -1770,7 +1771,7 @@ void ServerState::load_ep3_cards(bool from_non_event_thread) {
 
 void ServerState::load_ep3_maps(bool from_non_event_thread) {
   config_log.info("Collecting Episode 3 maps");
-  auto new_ep3_map_index = make_shared<Episode3::MapIndex>("system/ep3/maps");
+  auto new_ep3_map_index = make_shared<Episode3::MapIndex>(PathManager::getInstance()->getSystemPath() + "ep3/maps");
 
   auto set = [s = this->shared_from_this(), new_ep3_map_index = std::move(new_ep3_map_index)]() {
     s->ep3_map_index = std::move(new_ep3_map_index);
@@ -1780,7 +1781,7 @@ void ServerState::load_ep3_maps(bool from_non_event_thread) {
 
 void ServerState::load_ep3_tournament_state(bool from_non_event_thread) {
   config_log.info("Loading Episode 3 tournament state");
-  const string& tournament_state_filename = "system/ep3/tournament-state.json";
+  const string& tournament_state_filename = PathManager::getInstance()->getSystemPath() + "ep3/tournament-state.json";
   auto new_ep3_tournament_index = make_shared<Episode3::TournamentIndex>(
       this->ep3_map_index, this->ep3_com_deck_index, tournament_state_filename);
 
@@ -1794,9 +1795,9 @@ void ServerState::load_ep3_tournament_state(bool from_non_event_thread) {
 
 void ServerState::load_quest_index(bool from_non_event_thread) {
   config_log.info("Collecting quests");
-  auto new_default_quest_index = make_shared<QuestIndex>("system/quests", this->quest_category_index, false);
+  auto new_default_quest_index = make_shared<QuestIndex>(PathManager::getInstance()->getSystemPath() + "quests", this->quest_category_index, false);
   config_log.info("Collecting Episode 3 download quests");
-  auto new_ep3_download_quest_index = make_shared<QuestIndex>("system/ep3/maps-download", this->quest_category_index, true);
+  auto new_ep3_download_quest_index = make_shared<QuestIndex>(PathManager::getInstance()->getSystemPath() + "ep3/maps-download", this->quest_category_index, true);
 
   auto set = [s = this->shared_from_this(),
                  new_default_quest_index = std::move(new_default_quest_index),
@@ -1809,7 +1810,7 @@ void ServerState::load_quest_index(bool from_non_event_thread) {
 
 void ServerState::compile_functions(bool from_non_event_thread) {
   config_log.info("Compiling client functions");
-  auto new_function_code_index = make_shared<FunctionCodeIndex>("system/client-functions");
+  auto new_function_code_index = make_shared<FunctionCodeIndex>(PathManager::getInstance()->getSystemPath() + "client-functions");
 
   auto set = [s = this->shared_from_this(), new_function_code_index = std::move(new_function_code_index)]() {
     s->function_code_index = std::move(new_function_code_index);
@@ -1819,7 +1820,7 @@ void ServerState::compile_functions(bool from_non_event_thread) {
 
 void ServerState::load_dol_files(bool from_non_event_thread) {
   config_log.info("Loading DOL files");
-  auto new_dol_file_index = make_shared<DOLFileIndex>("system/dol");
+  auto new_dol_file_index = make_shared<DOLFileIndex>(PathManager::getInstance()->getSystemPath() + "dol");
 
   auto set = [s = this->shared_from_this(), new_dol_file_index = std::move(new_dol_file_index)]() {
     s->dol_file_index = std::move(new_dol_file_index);
